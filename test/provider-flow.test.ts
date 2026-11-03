@@ -89,7 +89,7 @@ export function fixture() {
 }
 
 async function plugin(options: Options = {}) { return DimOAuthPlugin({}, { port: 0, ...options }) }
-const configured = { name: "Dim OAuth", npm: "@ai-sdk/openai-compatible", models: {} }
+const configured = { name: "DimAgent", npm: "@ai-sdk/openai-compatible", models: {} }
 
 describe("Magpie provider flows", () => {
   test("an explicitly disabled domestic client does not borrow another registration", async () => {

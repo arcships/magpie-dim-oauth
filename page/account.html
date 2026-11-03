@@ -4,16 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="dim-session" content="__SESSION__">
-  <title>Dim 账户</title>
+  <title>DimAgent</title>
   <link rel="stylesheet" href="account.css">
   <script src="account.js" defer></script>
 </head>
 <body>
 <main>
-  <header><div class="account-heading"><img class="app-icon" src="icon.png" width="44" height="44" alt=""><div><h1>Dim 账户</h1><p class="muted">套餐与用量，一目了然</p></div></div><button id="refresh">刷新</button></header>
+  <header><div class="account-heading"><img class="app-icon" src="icon.png" width="44" height="44" alt=""><div><h1>DimAgent</h1><p class="muted">套餐与用量，一目了然</p></div></div><button id="refresh">刷新</button></header>
   <div class="account-picker"><label class="account-label" for="account">当前账号</label><select id="account" aria-label="当前账号"></select></div>
   <p id="message" role="status" aria-live="polite"></p>
-  <div id="empty" hidden>请先在 Magpie 的 Dim OAuth 服务商中登录，并刷新一次用量。</div>
+  <div id="empty" hidden>请先在 Magpie 的 DimAgent 服务商中登录，并刷新一次用量。</div>
   <div id="content" hidden>
     <section class="plan"><div class="plan-heading"><div><p class="plan-label">当前套餐</p><h2 id="plan-name">套餐</h2><p id="plan-meta" class="muted"></p></div><span id="plan-status" class="badge"></span></div>
       <div class="actions"><button id="purchase" class="primary">购买套餐</button><button id="renew">续期套餐</button><button id="pricing" class="quiet">查看价格</button></div>

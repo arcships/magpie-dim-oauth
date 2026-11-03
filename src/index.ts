@@ -34,7 +34,7 @@ export const DimOAuthPlugin = async (_input: unknown, options: Options = {}) => 
   return {
     config: async (cfg: { provider?: Record<string, ProviderConfig> }) => {
       cfg.provider ??= {}
-      cfg.provider[PROVIDER] ??= { name: "Dim OAuth", npm: "@ai-sdk/openai-compatible", models: {} }
+      cfg.provider[PROVIDER] ??= { name: "DimAgent", npm: "@ai-sdk/openai-compatible", models: {} }
     },
     auth: {
       provider: PROVIDER,
