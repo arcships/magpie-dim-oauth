@@ -79,7 +79,11 @@ export const DimOAuthPlugin = async (_input: unknown, options: Options = {}) => 
         await register(getAuth)
         const auth = readAuth(await getAuth())
         const view = await fetchAccount(auth)
-        return { user: view.user, plan: view.plan?.name, until: view.plan?.end, windows: view.windows }
+        return {
+          user: view.user, plan: view.plan?.name, until: view.plan?.end,
+          // The account total overlaps the plan allowance; it is not a usage window.
+          windows: view.windows.filter((window) => window.name !== "Credits"),
+        }
       },
     },
     provider: {

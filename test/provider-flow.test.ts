@@ -19,6 +19,7 @@ export function fixture() {
   let detailsFailure = false
   let resetReplyFailure = false
   let zdr = true
+  let remainingUnits = 630
   let resetsApplied = 0
   const period = new Date(Date.now() + 86400_000).toISOString()
   const bucket = { unlimited: false, total_units: 1000, used_units: 370, remaining_units: 630, expires_at: period, window_states: [
@@ -27,7 +28,7 @@ export function fixture() {
   const summary = { window: { available_count: 3, nearest_expires_at: period }, monthly_full: { available_count: 2 } }
   const usage = () => ({ success: true, data: {
     subscription: { product: { name: "Dim Pro" }, subscription: { id: 88, status: "active" }, current_term: { end_at: period }, price: { amount: 20, currency: "USD", billing_interval: "month" } },
-    credits: { subscription_bucket: bucket, addon_buckets: [], remaining_units: 630 }, resets: summary,
+    credits: { subscription_bucket: bucket, addon_buckets: [], remaining_units: remainingUnits }, resets: summary,
     feature_meters: [{ feature_key: "web_search", total_allowance: 100, total_used: 4, period_end: period, unit: "call" }],
   } })
   const applied = new Map<string, unknown>()
@@ -85,7 +86,7 @@ export function fixture() {
     setTokenFailure: (value?: string) => { tokenFailure = value }, setModelFailure: (value: number) => { modelFailure = value },
     setQuotaFailure: (value: boolean) => { quotaFailure = value }, setDetailsFailure: (value: boolean) => { detailsFailure = value },
     setUnlimited: () => { bucket.unlimited = true; bucket.total_units = 0; bucket.used_units = 0; bucket.remaining_units = 0 },
-    setResetReplyFailure: (value: boolean) => { resetReplyFailure = value }, setZdr: (value: boolean) => { zdr = value }, resetsApplied: () => resetsApplied }
+    setResetReplyFailure: (value: boolean) => { resetReplyFailure = value }, setZdr: (value: boolean) => { zdr = value }, setRemainingUnits: (value: number) => { remainingUnits = value }, resetsApplied: () => resetsApplied }
 }
 
 async function plugin(options: Options = {}) { return DimOAuthPlugin({}, { port: 0, ...options }) }
@@ -277,6 +278,13 @@ describe("Magpie provider flows", () => {
     const f = fixture(); const hooks = await plugin()
     const result = await hooks.auth.usage(async () => f.auth)
     expect(result.plan).toBe("Dim Pro")
+    expect(result).not.toHaveProperty("balance")
+    expect(result.windows.some((window) => window.name === "Credits")).toBe(false)
+    f.setRemainingUnits(1630)
+    const withAddons = await hooks.auth.usage(async () => f.auth)
+    expect(withAddons).not.toHaveProperty("balance")
+    expect(withAddons.windows.find((window) => window.name === "Subscription")).toMatchObject({ amount: 370, limit: 1000 })
+    expect(withAddons.windows.some((window) => window.name === "Credits")).toBe(false)
     expect(result.windows.find((window) => window.name === "5h window")).toMatchObject({ used: 37, amount: 37, limit: 100, resetsAt: expect.any(String), aside: true })
     f.setQuotaFailure(true)
     await expect(hooks.auth.usage(async () => f.auth)).rejects.toThrow("503")
