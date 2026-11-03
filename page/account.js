@@ -43,15 +43,19 @@ function render() {
   $("purchase-url").value = view.subscriptionUrl;
   $("pricing-url").value = view.pricingUrl;
   $("windows").replaceChildren();
+  const subscription = view.windows.find((window) => window.name === "Subscription");
+  const credits = view.windows.find((window) => window.name === "Credits");
   for (const window of view.windows) {
+    if (window === credits && subscription) continue;
     const row = document.createElement("div"); row.className = "meter";
     const heading = document.createElement("div"); heading.className = "meter-heading";
     const name = document.createElement("strong");
     name.textContent = ({ Subscription: "月度额度", Credits: "可用额度", Usage: "套餐额度", web_search: "联网搜索" })[window.name] || window.name.replace("h window", " 小时窗口");
     const amount = document.createElement("span");
-    amount.textContent = window.limit !== undefined ? `${format(window.amount)} / ${format(window.limit)} ${unit(window.unit)}` : window.display === "Unlimited" ? "不限额度" : window.amount !== undefined ? `${format(window.amount)} ${unit(window.unit)}` : ({ "No allowance reported": "暂无额度信息", "No subscription allowance reported": "暂无套餐额度信息" })[window.display] || window.display;
+    amount.textContent = window.limit !== undefined ? `已用 ${format(window.amount)} / ${format(window.limit)} ${unit(window.unit)}` : window.display === "Unlimited" ? "不限额度" : window.amount !== undefined ? `${format(window.amount)} ${unit(window.unit)}` : ({ "No allowance reported": "暂无额度信息", "No subscription allowance reported": "暂无套餐额度信息" })[window.display] || window.display;
     heading.append(name, amount); row.append(heading);
     if (window.used !== undefined) { const progress = document.createElement("progress"); progress.max = 100; progress.value = Math.max(0, Math.min(100, window.used)); progress.setAttribute("aria-label", `${name.textContent} 已用 ${format(window.used)}%`); row.append(progress); }
+    if (window === subscription && credits) { const remaining = document.createElement("p"); remaining.className = "remaining"; remaining.textContent = `账户剩余 ${format(credits.amount)} ${unit(credits.unit)}`; row.append(remaining); }
     if (window.resetsAt) { const reset = document.createElement("p"); reset.className = "muted"; reset.dataset.resetAt = window.resetsAt; reset.title = `重置时间 ${date(window.resetsAt)}`; row.append(reset); }
     $("windows").append(row);
   }
