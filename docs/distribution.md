@@ -2,7 +2,8 @@
 
 2026-11-03 已将 `arcships/magpie-dim-oauth` 公开，并添加 GitHub Topic `magpie-plugin`。
 已验证匿名读取根目录 package.json，以及 GitHub 按 Magpie Topic 条件搜索命中仓库。
-尚未创建版本 tag 或 Release、发布 npm，也没有提交社区推荐列表收录 PR。
+本仓库只通过 GitHub 分发，不发布 npm。当前版本 `0.1.1`，正式发布使用对应的 `v0.1.1` annotated tag。
+社区收录已提交 [PR #669](https://github.com/magpie-community/plugins/pull/669)；审核状态以该 PR 为准。
 
 ## 官方所说的 tag 是什么
 
@@ -39,24 +40,28 @@ Plugins → Discover → Unofficial, on GitHub
 magpie plugin add arcships/magpie-dim-oauth
 ```
 
-## 版本 tag 与 Release：用于记录版本，不是发现列表的前提
+## 正式版本发布
 
-正式版本可以另建 `v0.1.1` tag 和 GitHub Release，让用户知道这次更新了什么。这一步在真实联调通过、版本确定后再做。
+使用仓库内的 [release-plugin 技能](../.agents/skills/release-plugin/SKILL.md)。
+本仓库正式发布必须完成版本号、校验、提交、annotated tag 和推送，不能仅修改 package.json。
+当前 `0.1.1` 的 tag 为 `v0.1.1`。本次只创建 Git tag，不创建 GitHub Release，也不发布 npm。
+
+这是本仓库的发布约定，不是 GitHub Topic 发现的前提。Magpie 对 GitHub 分支安装按提交检查更新；
+用户点击 Update 或执行 `magpie plugin update` 获取更新。固定 tag 安装可以使用：
 
 ```sh
-git tag v0.1.1
-git push origin v0.1.1
-gh release create v0.1.1 --title "v0.1.1" --notes-file release-notes.md
+magpie plugin add 'arcships/magpie-dim-oauth#v0.1.1'
 ```
 
-执行前先编写并核对 `release-notes.md`；上面的命令是待办示例，尚未执行。
+固定 tag 不会随着 main 移动。普通用户仍推荐使用不带 `#ref` 的仓库安装方式。
 
-## 社区推荐列表（尚未申请）
+## 社区推荐列表（已提交 PR）
 
 这与 GitHub Topic 发现是两条路径。官方推荐列表来自 [magpie-community/plugins 的 registry.json](https://github.com/magpie-community/plugins/blob/main/registry.json)。需要向该仓库提交收录 PR，由社区决定是否合并；列表最多每六小时拉取一次。
 
-若选择发布独立 npm 包，需要先取消 `package.json` 的 `private: true`、确认包名与发布权限，再按官方格式准备 registry 条目。
-当前包名与关键词已包含 OpenCode 插件识别所需词，发布 npm 后也可以被 Magpie 的 npm 搜索发现。
+当前社区 registry 只接受 npm 包名，而本仓库不发布 npm。因此 PR #669 中的 npm 安装前置条件仍未满足，
+不能把提交收录 PR 等同于用户已能通过 registry 安装；后续若需社区收录，应与维护者协调 GitHub 安装支持。
+GitHub Topic 发现与直接从仓库安装不受该限制。
 
-本项目位于自己的组织下，不应声明为 `@magpie-community/*`，也不应在 registry 条目里标记 `community: true`。
-准备收录 PR 前重新核对当时的官方规则，避免把“有 GitHub Topic”当成“已经经过社区审核”。
+本项目由 DimAgent 官方在 arcships 组织维护，不应声明为 `@magpie-community/*`，
+也不应在 registry 条目里标记 `community: true`。
