@@ -4,13 +4,13 @@
 
 把你的 Dim 套餐接到 [Magpie](https://github.com/yetone/magpie) 里。登录 Dim 账号后，就能选用套餐提供的模型；想看还剩多少额度、续期套餐，或者重置用量，打开侧栏的「Dim 账户」就行。
 
-还没有套餐？先去 [Dim 国内站购买或续期](https://dimagent.cn/console/subscription)，登录后按需要选择套餐就行。
+还没有套餐？先去 [Dim 购买或续期](https://dimagent.cn/console/subscription)，登录后按需要选择套餐就行。
 
 ## 先装到 Magpie 里
 
 请使用 Magpie **0.1.2818 或更新版本**。
 
-仓库目前是私有的，需要先有访问权限。用 GitHub CLI 登录后，把插件下载到本机：
+用 GitHub CLI 把插件下载到本机：
 
 ```sh
 gh repo clone arcships/magpie-dim-oauth
