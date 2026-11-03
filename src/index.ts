@@ -21,15 +21,15 @@ export const DimOAuthPlugin = async (_input: unknown, options: Options = {}) => 
   const register = (getAuth: GetAuth) => accountService?.register(getAuth)
   const config: OAuthOptions = {
     issuer: options.issuer ?? process.env.MAGPIE_DIM_ISSUER ?? "https://dimagent.cn",
-    clientId: options.clientId ?? process.env.MAGPIE_DIM_CLIENT_ID,
-    redirectUri: options.redirectUri ?? process.env.MAGPIE_DIM_REDIRECT_URI,
-    scope: options.scope ?? process.env.MAGPIE_DIM_SCOPE,
+    clientId: options.clientId ?? process.env.MAGPIE_DIM_CLIENT_ID ?? "271706aab9b74b15a7140b228a419e4a",
+    redirectUri: options.redirectUri ?? process.env.MAGPIE_DIM_REDIRECT_URI ?? "http://127.0.0.1:54322/oauth/callback",
+    scope: options.scope ?? process.env.MAGPIE_DIM_SCOPE ?? "openid profile email",
   }
   const global: OAuthOptions = {
     issuer: options.global?.issuer ?? process.env.MAGPIE_DIM_GLOBAL_ISSUER ?? "https://dimagent.com",
-    clientId: options.global?.clientId ?? process.env.MAGPIE_DIM_GLOBAL_CLIENT_ID,
-    redirectUri: options.global?.redirectUri ?? process.env.MAGPIE_DIM_GLOBAL_REDIRECT_URI,
-    scope: options.global?.scope ?? process.env.MAGPIE_DIM_GLOBAL_SCOPE,
+    clientId: options.global?.clientId ?? process.env.MAGPIE_DIM_GLOBAL_CLIENT_ID ?? "91975f99125f42bc88859100a1769ea4",
+    redirectUri: options.global?.redirectUri ?? process.env.MAGPIE_DIM_GLOBAL_REDIRECT_URI ?? "http://127.0.0.1:54322/oauth/callback",
+    scope: options.global?.scope ?? process.env.MAGPIE_DIM_GLOBAL_SCOPE ?? "openid profile email",
   }
   return {
     config: async (cfg: { provider?: Record<string, ProviderConfig> }) => {

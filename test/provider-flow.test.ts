@@ -88,13 +88,31 @@ async function plugin(options: Options = {}) { return DimOAuthPlugin({}, options
 const configured = { name: "Dim OAuth", npm: "@ai-sdk/openai-compatible", models: {} }
 
 describe("Magpie provider flows", () => {
-  test("loads without a client ID and refuses login without borrowing one", async () => {
-    const hooks = await plugin()
+  test("an explicitly disabled domestic client does not borrow another registration", async () => {
+    const hooks = await plugin({ clientId: "" })
     const cfg = { provider: { "dim-oauth": { ...configured, name: "User label" } } }
     await hooks.config(cfg)
     expect(cfg.provider["dim-oauth"].name).toBe("User label")
     expect(hooks.auth.methods[0]!.label).toBe("国内站登录")
     await expect(hooks.auth.methods[0]!.authorize()).rejects.toThrow("client ID")
+  })
+
+  test("bundled site registrations use their own client IDs with PKCE S256", async () => {
+    const cn = fixture(), global = fixture()
+    const hooks = await plugin({ issuer: cn.issuer, redirectUri: cn.options.redirectUri, global: { issuer: global.issuer, redirectUri: global.options.redirectUri } })
+    expect(hooks.auth.methods.map((method) => method.label)).toEqual(["国内站登录", "海外站登录"])
+    for (const [index, issuer, clientId] of [[0, cn.issuer, "271706aab9b74b15a7140b228a419e4a"], [1, global.issuer, "91975f99125f42bc88859100a1769ea4"]] as const) {
+      const abort = new AbortController()
+      const login = await hooks.auth.methods[index]!.authorize(undefined, { signal: abort.signal })
+      try {
+        const url = new URL(login.url)
+        expect(url.origin).toBe(issuer)
+        expect(url.searchParams.get("client_id")).toBe(clientId)
+        expect(url.searchParams.get("scope")).toBe("openid profile email")
+        expect(url.searchParams.get("code_challenge_method")).toBe("S256")
+        expect(url.searchParams.get("code_challenge")).toHaveLength(43)
+      } finally { abort.abort(); await login.callback() }
+    }
   })
 
   test("PKCE login binds state and client, persists issuer and verifies userinfo", async () => {

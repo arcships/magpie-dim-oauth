@@ -1,6 +1,6 @@
 # Magpie Dim OAuth 接入分析
 
-日期：2026-11-03。状态：按用户追加需求实现；待新客户端注册信息和真实服务联调。
+日期：2026-11-03。状态：两站新客户端已配置，匿名授权预检通过；待真实账号与模型服务联调。
 
 ## 上游依据
 
@@ -109,6 +109,13 @@ Magpie 根据模型的 AI SDK 标记选择协议：`@ai-sdk/openai-compatible` �
 用量与令牌续期。浏览器在 `sandbox="allow-scripts"` 的 iframe 下验证账户页、取消、两类重置与窄屏布局。
 这些验证使用本地模拟 OAuth 与模型服务，没有进行真实账号授权或真实模型调用。
 
+用户随后提供国内 client ID `271706aab9b74b15a7140b228a419e4a` 和海外 client ID
+`91975f99125f42bc88859100a1769ea4`，两者均启用 PKCE。插件已内置各自的新注册，默认回调地址为
+`http://127.0.0.1:54322/oauth/callback`，scope 为 `openid profile email`，不再需要用户手动填写。
+已访问两站 OIDC 发现端点确认 issuer、授权/令牌/userinfo 地址和 S256 支持；
+使用各自的新 client ID 发起匿名授权预检，均返回 302 到本站 `/oauth-login`。
+没有执行真实登录、真实模型请求或消费重置次数。
+
 当前按用户要求推送到 `arcships/magpie-dim-oauth` 私有仓库；使用 GitHub 安装需要对应私有仓库权限。
 暂不发布 npm。后续公开后可用 `magpie plugin add arcships/magpie-dim-oauth` 安装；
 进入 Magpie 推荐目录需要单独提交社区 `registry.json` 条目，
@@ -116,8 +123,7 @@ Magpie 根据模型的 AI SDK 标记选择协议：`@ai-sdk/openai-compatible` �
 
 ## 真实服务联调前待补信息
 
-- 新 client ID 及其对应 issuer。
-- 该注册允许的授权方式、scope、回调 URI，以及是否签发 refresh token。
+- 真实登录后确认 refresh token 签发、userinfo 与令牌续期。
 - relay 接受的新插件请求标识，以及该客户端对模型、用量 API 的访问权限。
 
 ## 消融检查
