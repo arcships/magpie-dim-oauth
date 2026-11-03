@@ -34,7 +34,7 @@ export function endpoint(value: unknown, issuer: string, label: string): string 
 }
 
 export function identityHeaders(access?: string): Headers {
-  const headers = new Headers({ "User-Agent": "magpie-dim-oauth/0.1.0", "X-Title": "Magpie Dim OAuth" })
+  const headers = new Headers({ "User-Agent": "magpie-dim-oauth/0.1.1", "X-Title": "Magpie Dim OAuth" })
   if (access) headers.set("Authorization", `Bearer ${access}`)
   return headers
 }

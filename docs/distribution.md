@@ -6,7 +6,7 @@
 
 ## 官方所说的 tag 是什么
 
-让 GitHub 仓库出现在 Magpie 的发现列表，需要的是 GitHub 仓库 **Topic：`magpie-plugin`**，而不是 `v0.1.0` 这样的 Git 版本 tag。
+让 GitHub 仓库出现在 Magpie 的发现列表，需要的是 GitHub 仓库 **Topic：`magpie-plugin`**，而不是 `v0.1.1` 这样的 Git 版本 tag。
 
 Magpie 会搜索带这个 Topic 的仓库，展示在：
 
@@ -41,12 +41,12 @@ magpie plugin add arcships/magpie-dim-oauth
 
 ## 版本 tag 与 Release：用于记录版本，不是发现列表的前提
 
-正式版本可以另建 `v0.1.0` tag 和 GitHub Release，让用户知道这次更新了什么。这一步在真实联调通过、版本确定后再做。
+正式版本可以另建 `v0.1.1` tag 和 GitHub Release，让用户知道这次更新了什么。这一步在真实联调通过、版本确定后再做。
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
-gh release create v0.1.0 --title "v0.1.0" --notes-file release-notes.md
+git tag v0.1.1
+git push origin v0.1.1
+gh release create v0.1.1 --title "v0.1.1" --notes-file release-notes.md
 ```
 
 执行前先编写并核对 `release-notes.md`；上面的命令是待办示例，尚未执行。

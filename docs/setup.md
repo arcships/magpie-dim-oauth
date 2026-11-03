@@ -73,6 +73,6 @@ MAGPIE_TEST_BINARY=/absolute/path/to/magpie bun test
 账号令牌仅由 Magpie 保存在其 `plugin-auth.json` 中；页面只接收不含令牌的账号信息。
 本插件不读取 DimCode、Desktop 或其他应用的账号文件。所有模型请求只允许发往当前账号 issuer 的 relay，
 重定向不会携带令牌继续转发。服务端仍需允许新插件的客户端身份；本插件使用自己的
-`magpie-dim-oauth/0.1.0` 请求标识，不冒用现有官方客户端。
+`magpie-dim-oauth/0.1.1` 请求标识，不冒用现有官方客户端。
 
 详细分析与待验证条件见 [接入设计](integration.md)。
