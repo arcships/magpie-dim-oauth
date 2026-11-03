@@ -59,7 +59,7 @@ export class AccountService {
       }
       return action(auth)
     })
-    this.accounts.set(id, { label: initial.accountId, run, active: async () => {
+    this.accounts.set(id, { label: `${initial.accountId} (${new URL(initial.issuer).host})`, run, active: async () => {
       const auth = readAuth(await getAuth())
       return auth.uid === initial.uid && auth.issuer === initial.issuer && auth.clientId === initial.clientId
     } })

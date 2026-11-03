@@ -5,13 +5,13 @@
 ## 配置登录
 
 在 Magpie 配置目录 `plugins.json` 的本插件条目中设置 `options`。以下是配置格式示例，
-`YOUR_NEW_CLIENT_ID` 必须替换为专门注册的新 ID；issuer、scope 和回调地址也必须与新注册一致：
+以下配置用于国内站。`YOUR_NEW_CLIENT_ID` 必须替换为专门注册的新 ID；scope 和回调地址也必须与新注册一致：
 
 ```json
 {
   "spec": "/absolute/path/to/magpie-dim-oauth",
   "options": {
-    "issuer": "https://dimagent.com",
+    "issuer": "https://dimagent.cn",
     "clientId": "YOUR_NEW_CLIENT_ID",
     "redirectUri": "http://127.0.0.1:54322/oauth/callback",
     "scope": "openid profile email",
@@ -23,6 +23,13 @@
 也可以通过宿主环境变量配置四项 OAuth 参数：`MAGPIE_DIM_ISSUER`、`MAGPIE_DIM_CLIENT_ID`、
 `MAGPIE_DIM_REDIRECT_URI` 和 `MAGPIE_DIM_SCOPE`。插件 options 优先，**没有任何内置 client ID 或旧 ID 回退**。
 本插件不自动读取 `.env` 文件；桌面进程未必继承终端环境，推荐使用 options。
+
+国内站的默认 issuer 为 `https://dimagent.cn`。海外站入口默认显示“海外站（敬请期待）”，
+点击时只提示“敬请期待”，不请求任何授权端点。
+维护者取得对应注册信息后，可以单独配置 `options.global` 的 `clientId`、`scope` 和 `redirectUri`；
+其默认 issuer 为 `https://dimagent.com`。这四项也可分别通过 `MAGPIE_DIM_GLOBAL_CLIENT_ID`、
+`MAGPIE_DIM_GLOBAL_SCOPE`、`MAGPIE_DIM_GLOBAL_REDIRECT_URI`、`MAGPIE_DIM_GLOBAL_ISSUER` 设置。
+海外配置不会读取国内 client ID、scope 或回调地址。README 的介绍和购买链接只面向国内站。
 
 回调仅监听 `127.0.0.1`，使用 HTTP 和已注册的明确端口；`port` 是账户页面服务的独立端口，
 不应与 OAuth 回调、Magpie 网关或 Web 页面端口相同。配置后重新启用插件，再执行：

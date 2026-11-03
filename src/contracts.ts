@@ -1,9 +1,13 @@
 // Structural contracts for the documented Magpie provider hooks.
-export interface Options {
+export interface OAuthOptions {
   issuer?: string
   clientId?: string
   redirectUri?: string
   scope?: string
+}
+
+export interface Options extends OAuthOptions {
+  global?: OAuthOptions
   port?: number
 }
 

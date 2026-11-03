@@ -1,4 +1,4 @@
-import type { GetAuth, Options, ProviderConfig } from "./contracts"
+import type { GetAuth, OAuthOptions, Options, ProviderConfig } from "./contracts"
 import { PROVIDER } from "./contracts"
 import { models } from "./catalog"
 import { fetchAccount } from "./account"
@@ -19,11 +19,17 @@ export const DimOAuthPlugin = async (_input: unknown, options: Options = {}) => 
     }
   }
   const register = (getAuth: GetAuth) => accountService?.register(getAuth)
-  const config: Options = {
-    issuer: options.issuer ?? process.env.MAGPIE_DIM_ISSUER,
+  const config: OAuthOptions = {
+    issuer: options.issuer ?? process.env.MAGPIE_DIM_ISSUER ?? "https://dimagent.cn",
     clientId: options.clientId ?? process.env.MAGPIE_DIM_CLIENT_ID,
     redirectUri: options.redirectUri ?? process.env.MAGPIE_DIM_REDIRECT_URI,
     scope: options.scope ?? process.env.MAGPIE_DIM_SCOPE,
+  }
+  const global: OAuthOptions = {
+    issuer: options.global?.issuer ?? process.env.MAGPIE_DIM_GLOBAL_ISSUER ?? "https://dimagent.com",
+    clientId: options.global?.clientId ?? process.env.MAGPIE_DIM_GLOBAL_CLIENT_ID,
+    redirectUri: options.global?.redirectUri ?? process.env.MAGPIE_DIM_GLOBAL_REDIRECT_URI,
+    scope: options.global?.scope ?? process.env.MAGPIE_DIM_GLOBAL_SCOPE,
   }
   return {
     config: async (cfg: { provider?: Record<string, ProviderConfig> }) => {
@@ -33,8 +39,14 @@ export const DimOAuthPlugin = async (_input: unknown, options: Options = {}) => 
     auth: {
       provider: PROVIDER,
       methods: [{
-        type: "oauth" as const, label: "Sign in with Dim",
+        type: "oauth" as const, label: "国内站登录",
         authorize: (_inputs?: unknown, context?: { signal?: AbortSignal }) => authorize(config, context?.signal),
+      }, {
+        type: "oauth" as const, label: global.clientId ? "海外站登录" : "海外站（敬请期待）",
+        authorize: (_inputs?: unknown, context?: { signal?: AbortSignal }) => {
+          if (!global.clientId) throw new Error("敬请期待")
+          return authorize(global, context?.signal)
+        },
       }],
       refresh,
       async loader(getAuth: GetAuth) {

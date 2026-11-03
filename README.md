@@ -4,7 +4,7 @@
 
 把你的 Dim 套餐接到 [Magpie](https://github.com/yetone/magpie) 里。登录 Dim 账号后，就能选用套餐提供的模型；想看还剩多少额度、续期套餐，或者重置用量，打开侧栏的「Dim 账户」就行。
 
-还没有套餐？先去 [Dim 国内站购买或续期](https://dimagent.cn/console/subscription)，也可以使用 [Dim 海外站](https://dimagent.com/console/subscription)。选择你账号所在的站点即可。
+还没有套餐？先去 [Dim 国内站购买或续期](https://dimagent.cn/console/subscription)，登录后按需要选择套餐就行。
 
 > 目前是私有内测阶段，登录配置还在准备中。可以先安装插件，真实登录和模型调用需要等配置完成后再试。
 
@@ -28,7 +28,7 @@ magpie plugin add ./magpie-dim-oauth
 
 ## 登录，然后选一个模型
 
-1. 在 Magpie 的服务商列表里找到 **Dim OAuth**，点击 **Sign in with Dim**。
+1. 在 Magpie 的服务商列表里找到 **Dim OAuth**，点击 **国内站登录**。
 2. 在打开的浏览器中登录 Dim，并完成授权。
 3. 回到 Magpie，等模型列表加载出来，再给你要使用的 Agent 选一个 Dim 模型。
 
@@ -57,12 +57,7 @@ Magpie
 
 账户页里有 **购买套餐**、**续期套餐** 和 **查看价格** 按钮，会打开当前账号所在站点的官方页面。支付和续期都在官网完成。
 
-你也可以直接打开：
-
-| 站点 | 购买 / 续期 | 查看价格 |
-| --- | --- | --- |
-| 国内站 | [打开套餐页面](https://dimagent.cn/console/subscription) | [查看价格](https://dimagent.cn/console/pricing) |
-| 海外站 | [打开套餐页面](https://dimagent.com/console/subscription) | [查看价格](https://dimagent.com/console/pricing) |
+你也可以直接 [购买或续期套餐](https://dimagent.cn/console/subscription)，或者先 [查看价格](https://dimagent.cn/console/pricing)。
 
 购买或续期完成后，回到 Magpie 的 **Dim 账户**，点一下 **刷新**。
 

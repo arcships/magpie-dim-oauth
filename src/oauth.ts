@@ -1,5 +1,5 @@
 import { randomBytes, createHash } from "node:crypto"
-import type { Auth, Options } from "./contracts"
+import type { Auth, OAuthOptions } from "./contracts"
 import { endpoint, identityHeaders, json, number, record, request, text, trustedUrl } from "./http"
 
 export function readAuth(value: unknown): Auth {
@@ -49,11 +49,11 @@ export async function refresh(value: unknown) {
   }, auth.refresh)
 }
 
-export async function authorize(options: Options, signal?: AbortSignal) {
-  const issuer = trustedUrl(options.issuer, "issuer (MAGPIE_DIM_ISSUER)").href.replace(/\/$/, "")
-  const clientId = text(options.clientId, "client ID (MAGPIE_DIM_CLIENT_ID)")
-  const scope = text(options.scope, "scope (MAGPIE_DIM_SCOPE)")
-  const redirect = trustedUrl(options.redirectUri, "redirect URI (MAGPIE_DIM_REDIRECT_URI)")
+export async function authorize(options: OAuthOptions, signal?: AbortSignal) {
+  const issuer = trustedUrl(options.issuer, "issuer").href.replace(/\/$/, "")
+  const clientId = text(options.clientId, "client ID")
+  const scope = text(options.scope, "scope")
+  const redirect = trustedUrl(options.redirectUri, "redirect URI")
   if (redirect.protocol !== "http:" || redirect.hostname !== "127.0.0.1" || !redirect.port) {
     throw new Error("Dim redirect URI must be http://127.0.0.1:<port>/<callback-path>")
   }
@@ -137,8 +137,10 @@ export async function authorize(options: Options, signal?: AbortSignal) {
           headers: identityHeaders(tokens.access), signal: networkSignal,
         }), "Dim userinfo")
         const subject = text(user.sub, "user subject")
-        const uid = user.uid === undefined ? subject : text(user.uid, "user ID")
-        const accountId = typeof user.email === "string" && user.email.trim() ? user.email.trim() : uid
+        const userId = user.uid === undefined ? subject : text(user.uid, "user ID")
+        // Subjects are unique within an issuer, not across both Dim sites.
+        const uid = JSON.stringify([issuer, userId])
+        const accountId = typeof user.email === "string" && user.email.trim() ? user.email.trim() : userId
         return { type: "success" as const, ...tokens, issuer, tokenEndpoint, clientId, accountId, uid }
       } catch (error) {
         // Only messages produced in this module or the HTTP boundary are exposed.

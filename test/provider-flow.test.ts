@@ -93,7 +93,8 @@ describe("Magpie provider flows", () => {
     const cfg = { provider: { "dim-oauth": { ...configured, name: "User label" } } }
     await hooks.config(cfg)
     expect(cfg.provider["dim-oauth"].name).toBe("User label")
-    await expect(hooks.auth.methods[0]!.authorize()).rejects.toThrow("issuer")
+    expect(hooks.auth.methods[0]!.label).toBe("国内站登录")
+    await expect(hooks.auth.methods[0]!.authorize()).rejects.toThrow("client ID")
   })
 
   test("PKCE login binds state and client, persists issuer and verifies userinfo", async () => {
@@ -111,7 +112,7 @@ describe("Magpie provider flows", () => {
     if (result.type !== "success") throw new Error(result.error)
     expect(result.clientId).toBe("test-client-only")
     expect(result.issuer).toBe(f.issuer)
-    expect(result.uid).toBe("user-1")
+    expect(result.uid).toBe(JSON.stringify([f.issuer, "user-1"]))
     const form = new URLSearchParams(f.calls.find((call) => call.path === "/oauth/token")!.body)
     expect(form.has("client_secret")).toBe(false)
     expect(form.get("client_id")).toBe("test-client-only")
@@ -127,6 +128,68 @@ describe("Magpie provider flows", () => {
     expect(await login.callback()).toEqual({ type: "failed", error: "Dim sign-in cancelled" })
     await expect(fetch(new URL(login.url).searchParams.get("redirect_uri")!)).rejects.toThrow()
     expect(f.calls.some((call) => call.path === "/oauth/token")).toBe(false)
+  })
+
+  test("unconfigured global sign-in shows the coming-soon entry without borrowing domestic credentials", async () => {
+    const f = fixture()
+    const hooks = await plugin({ ...f.options, global: { clientId: "" } })
+    expect(hooks.auth.methods.map((method) => method.label)).toEqual(["国内站登录", "海外站（敬请期待）"])
+    expect(() => hooks.auth.methods[1]!.authorize()).toThrow("敬请期待")
+    expect(f.calls).toHaveLength(0)
+  })
+
+  test("both site logins keep separate identities, refresh clients and account operations", async () => {
+    const cn = fixture(), global = fixture()
+    const hooks = await plugin({ ...cn.options, global: { ...global.options, clientId: "global-test-client-only" } })
+    expect(hooks.auth.methods[1]!.label).toBe("海外站登录")
+    const accounts: Auth[] = []
+    for (const [index, site, clientId] of [[0, cn, "test-client-only"], [1, global, "global-test-client-only"]] as const) {
+      const login = await hooks.auth.methods[index]!.authorize()
+      const url = new URL(login.url)
+      expect(url.origin).toBe(site.issuer)
+      expect(url.searchParams.get("client_id")).toBe(clientId)
+      const callback = new URL(url.searchParams.get("redirect_uri")!)
+      callback.search = new URLSearchParams({ state: url.searchParams.get("state")!, code: "site-code" }).toString()
+      expect((await fetch(callback)).status).toBe(200)
+      const result = await login.callback()
+      if (result.type !== "success") throw new Error(result.error)
+      const { type: _type, ...fields } = result
+      const auth: Auth = { ...fields, type: "oauth" }
+      accounts.push(auth)
+      await hooks.auth.refresh(auth)
+      expect(new URLSearchParams(site.calls.findLast((call) => call.path === "/oauth/token")!.body).get("client_id")).toBe(clientId)
+      const loader = await hooks.auth.loader(async () => auth)
+      await loader.fetch(`${site.issuer}/v1/messages`)
+      await expect(loader.fetch(`${index === 0 ? global.issuer : cn.issuer}/v1/messages`)).rejects.toThrow("outside")
+      await hooks.provider.models(configured, { auth })
+      await hooks.auth.usage(async () => auth)
+    }
+    expect(accounts[0]!.accountId).toBe(accounts[1]!.accountId)
+    expect(accounts[0]!.uid).not.toBe(accounts[1]!.uid)
+    expect(accounts[0]!.tokenEndpoint).not.toBe(accounts[1]!.tokenEndpoint)
+
+    const service = new AccountService("")
+    const server = service.start(0); stops.push(() => service.stop())
+    for (const auth of accounts) await service.register(async () => auth)
+    const base = `http://127.0.0.1:${server.port}/`
+    const secret = (await (await fetch(base)).text()).match(/name="dim-session" content="([^"]+)"/)![1]!
+    const post = async (path: string, data: Record<string, unknown> = {}) => {
+      const response = await fetch(`${base}${path}`, { method: "POST", headers: { "Content-Type": "application/json", "X-Dim-Session": secret }, body: JSON.stringify(data) })
+      expect(response.status).toBe(200)
+      return response.json()
+    }
+    const list = await post("accounts")
+    expect(list.accounts).toHaveLength(2)
+    for (const [index, site] of [cn, global].entries()) {
+      expect(list.accounts[index].label).toContain(new URL(site.issuer).host)
+      const account = list.accounts[index].id
+      const view = await post("view", { account })
+      expect(view.subscriptionUrl).toBe(`${site.issuer}/console/subscription`)
+      expect(view.pricingUrl).toBe(`${site.issuer}/console/pricing`)
+      const confirmation = await post("reset/prepare", { account, kind: "window" })
+      await post("reset/apply", { account, confirmation: confirmation.confirmation })
+      expect(site.resetsApplied()).toBe(1)
+    }
   })
 
   test("refresh uses the saved client and retains an unrotated refresh token", async () => {
@@ -203,7 +266,7 @@ test.skipIf(!process.env.MAGPIE_TEST_BINARY)("official Magpie installs the plugi
   const gatewayPort = await freePort()
   const pagePort = await freePort()
   const webPort = await freePort()
-  const env = { ...process.env, HOME: sandbox, XDG_CONFIG_HOME: join(sandbox, "config"), XDG_CACHE_HOME: join(sandbox, "cache"), MAGPIE_BUN: process.execPath, MAGPIE_ADDR: `127.0.0.1:${gatewayPort}` }
+  const env = { ...process.env, HOME: sandbox, XDG_CONFIG_HOME: join(sandbox, "config"), XDG_CACHE_HOME: join(sandbox, "cache"), MAGPIE_BUN: process.execPath, MAGPIE_ADDR: `127.0.0.1:${gatewayPort}`, MAGPIE_DIM_GLOBAL_CLIENT_ID: "" }
   const run = async (...args: string[]) => {
     const child = Bun.spawn([binary, ...args], { env, cwd: sandbox, stdout: "pipe", stderr: "pipe" })
     const [output, error, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited])
@@ -218,6 +281,8 @@ test.skipIf(!process.env.MAGPIE_TEST_BINARY)("official Magpie installs the plugi
   await Bun.write(pluginFile, JSON.stringify(config))
   const installed = await run("plugin", "--json")
   expect(installed).toContain("dim-oauth")
+  expect(installed).toContain("国内站登录")
+  expect(installed).toContain("海外站（敬请期待）")
   await Bun.write(join(dir, "plugin-auth.json"), JSON.stringify({ "dim-oauth": { ...f.auth, expires: Date.now() - 1000 } }))
   const listed = await run("plugin", "--json")
   expect(listed).toContain("Dim Chat")
