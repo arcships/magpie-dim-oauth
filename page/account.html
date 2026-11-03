@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="dim-session" content="__SESSION__">
+  <title>Dim 账户</title>
+  <link rel="stylesheet" href="account.css">
+  <script src="account.js" defer></script>
+</head>
+<body>
+<main>
+  <header><div><h1>Dim 账户</h1><p class="muted">管理套餐、额度和重置次数</p></div><button id="refresh">刷新</button></header>
+  <label class="account-label" for="account">当前账号</label><select id="account" aria-label="当前账号"></select>
+  <p id="message" role="status" aria-live="polite"></p>
+  <div id="empty" hidden>请先在 Magpie 的 Dim OAuth 服务商中登录，并刷新一次用量。</div>
+  <div id="content" hidden>
+    <section class="plan"><div class="plan-heading"><div><span class="brand">Dim</span><h2 id="plan-name">套餐</h2><p id="plan-meta" class="muted"></p></div><span id="plan-status" class="badge"></span></div>
+      <div class="actions"><button id="purchase" class="primary">购买套餐</button><button id="renew">续期套餐</button><button id="pricing" class="quiet">查看价格</button></div>
+      <p class="muted">将在浏览器中打开官方页面完成购买或续期。</p>
+      <label class="link-label" for="purchase-url">套餐链接</label><input id="purchase-url" readonly aria-label="套餐购买及续期链接">
+      <label class="link-label" for="pricing-url">价格链接</label><input id="pricing-url" readonly aria-label="价格页面链接">
+    </section>
+    <section><h2>套餐用量</h2><div id="windows"></div></section>
+    <section><h2>额度重置</h2><p class="muted">每次操作消耗 1 次对应重置次数。请先核对适用套餐和有效期。</p>
+      <div class="reset-row"><div><strong>重置用量窗口</strong><p id="window-count" class="muted"></p></div><button data-reset="window">重置窗口</button></div>
+      <div class="reset-row"><div><strong>恢复月度额度</strong><p id="monthly-count" class="muted"></p></div><button data-reset="monthly_full">恢复月度额度</button></div>
+    </section>
+  </div>
+  <dialog id="confirmation" aria-labelledby="confirm-title">
+    <h2 id="confirm-title">确认重置</h2><p id="confirm-summary"></p><ul id="batches"></ul><p id="confirm-notice" class="muted"></p><p id="confirm-error" role="alert"></p>
+    <div class="actions"><button id="cancel">取消</button><button id="apply" class="primary">消耗 1 次并重置</button></div>
+  </dialog>
+</main>
+</body>
+</html>
