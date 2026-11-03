@@ -18,6 +18,7 @@ export function fixture() {
   let quotaFailure = false
   let detailsFailure = false
   let resetReplyFailure = false
+  let zdr = true
   let resetsApplied = 0
   const period = new Date(Date.now() + 86400_000).toISOString()
   const bucket = { unlimited: false, total_units: 1000, used_units: 370, remaining_units: 630, expires_at: period, window_states: [
@@ -50,6 +51,9 @@ export function fixture() {
         { id: "messages", dim: { endpoint_type: "anthropic", toolCalling: true, limit: { context: 200000, output: 32000 } } },
         { id: "response", supported_endpoint_types: ["openai-response"], tool_call: true },
         { id: "google", supported_endpoint_types: ["gemini"], tool_call: true },
+        { id: "default-chat", ...(zdr ? { zdr: true } : {}), dim: { displayName: "Default Chat", modalities: ["text"], limit: { context: 262144, output: 32768 } } },
+        { id: "plain-model", dim: null, zdr_supported: true },
+        { id: "image-output", dim: { type: "image-generation", modalities: { input: ["text", "image"], output: ["image"] }, tool_call: false } },
         { id: "image", supported_endpoint_types: ["image-generation"] },
       ] })
     }
@@ -81,10 +85,10 @@ export function fixture() {
     setTokenFailure: (value?: string) => { tokenFailure = value }, setModelFailure: (value: number) => { modelFailure = value },
     setQuotaFailure: (value: boolean) => { quotaFailure = value }, setDetailsFailure: (value: boolean) => { detailsFailure = value },
     setUnlimited: () => { bucket.unlimited = true; bucket.total_units = 0; bucket.used_units = 0; bucket.remaining_units = 0 },
-    setResetReplyFailure: (value: boolean) => { resetReplyFailure = value }, resetsApplied: () => resetsApplied }
+    setResetReplyFailure: (value: boolean) => { resetReplyFailure = value }, setZdr: (value: boolean) => { zdr = value }, resetsApplied: () => resetsApplied }
 }
 
-async function plugin(options: Options = {}) { return DimOAuthPlugin({}, options) }
+async function plugin(options: Options = {}) { return DimOAuthPlugin({}, { port: 0, ...options }) }
 const configured = { name: "Dim OAuth", npm: "@ai-sdk/openai-compatible", models: {} }
 
 describe("Magpie provider flows", () => {
@@ -227,13 +231,23 @@ describe("Magpie provider flows", () => {
   test("catalog follows server protocols, capabilities and per-account authentication", async () => {
     const f = fixture(); const hooks = await plugin()
     const models = await hooks.provider.models(configured, { auth: f.auth })
-    expect(Object.keys(models)).toEqual(["chat", "messages", "response", "google"])
+    expect(Object.keys(models)).toEqual(["chat", "messages", "response", "google", "default-chat", "plain-model", "image-output"])
     expect(models.chat!.limit.context).toBe(128000)
     expect(models.chat!.capabilities.input.image).toBe(true)
     expect(models.messages!.api).toMatchObject({ npm: "@ai-sdk/anthropic", url: `${f.issuer}/v1` })
     expect(models.response!.api.npm).toBe("@ai-sdk/openai")
     expect(models.google!.api.url).toBe(`${f.issuer}/v1beta`)
+    expect(models["default-chat"]!.api).toMatchObject({ npm: "@ai-sdk/openai-compatible", url: `${f.issuer}/v1` })
+    expect(models["default-chat"]!.limit.context).toBe(262144)
+    expect(models["default-chat"]!.name).toBe("Default Chat · ZDR")
+    expect(models["default-chat"]!.api.id).toBe("default-chat")
+    expect(models["plain-model"]!.id).toBe("plain-model")
+    expect(models["plain-model"]!.name).toBe("plain-model")
+    expect(models["image-output"]!.capabilities.output).toEqual({ image: true })
     expect(Object.keys(models.chat!.variants)).toEqual(["low", "high"])
+    f.setZdr(false)
+    const refreshed = await hooks.provider.models(configured, { auth: f.auth })
+    expect(refreshed["default-chat"]!.name).toBe("Default Chat")
     f.setModelFailure(503)
     await expect(hooks.provider.models(configured, { auth: f.auth })).rejects.toThrow("503")
     f.setModelFailure(401)
@@ -364,6 +378,7 @@ describe("Account page user flows", () => {
     expect(data.resets.window.available).toBe(3)
     expect(JSON.stringify(data)).not.toContain("access-one")
     expect(p.htmlResponse.headers.has("access-control-allow-origin")).toBe(false)
+    expect(p.htmlResponse.headers.get("content-security-policy")).toContain("frame-ancestors 'self' wails://localhost")
     const stale = p.id; p.setAuth(undefined)
     expect((await p.post("accounts")).data.accounts).toEqual([])
     expect((await p.post("view", { account: stale })).response.status).toBe(404)

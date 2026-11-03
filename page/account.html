@@ -10,19 +10,20 @@
 </head>
 <body>
 <main>
-  <header><div class="account-heading"><img class="app-icon" src="icon.png" width="44" height="44" alt=""><div><h1>Dim 账户</h1><p class="muted">管理套餐、额度和重置次数</p></div></div><button id="refresh">刷新</button></header>
-  <label class="account-label" for="account">当前账号</label><select id="account" aria-label="当前账号"></select>
+  <header><div class="account-heading"><img class="app-icon" src="icon.png" width="44" height="44" alt=""><div><h1>Dim 账户</h1><p class="muted">套餐与用量，一目了然</p></div></div><button id="refresh">刷新</button></header>
+  <div class="account-picker"><label class="account-label" for="account">当前账号</label><select id="account" aria-label="当前账号"></select></div>
   <p id="message" role="status" aria-live="polite"></p>
   <div id="empty" hidden>请先在 Magpie 的 Dim OAuth 服务商中登录，并刷新一次用量。</div>
   <div id="content" hidden>
-    <section class="plan"><div class="plan-heading"><div><span class="brand">Dim</span><h2 id="plan-name">套餐</h2><p id="plan-meta" class="muted"></p></div><span id="plan-status" class="badge"></span></div>
+    <section class="plan"><div class="plan-heading"><div><p class="plan-label">当前套餐</p><h2 id="plan-name">套餐</h2><p id="plan-meta" class="muted"></p></div><span id="plan-status" class="badge"></span></div>
       <div class="actions"><button id="purchase" class="primary">购买套餐</button><button id="renew">续期套餐</button><button id="pricing" class="quiet">查看价格</button></div>
-      <p class="muted">将在浏览器中打开官方页面完成购买或续期。</p>
+      <p class="purchase-note muted">购买和续期将在官网完成。</p>
+      <details class="links"><summary>获取购买链接</summary>
       <label class="link-label" for="purchase-url">套餐链接</label><input id="purchase-url" readonly aria-label="套餐购买及续期链接">
-      <label class="link-label" for="pricing-url">价格链接</label><input id="pricing-url" readonly aria-label="价格页面链接">
+      <label class="link-label" for="pricing-url">价格链接</label><input id="pricing-url" readonly aria-label="价格页面链接"></details>
     </section>
-    <section><h2>套餐用量</h2><div id="windows"></div></section>
-    <section><h2>额度重置</h2><p class="muted">每次操作消耗 1 次对应重置次数。请先核对适用套餐和有效期。</p>
+    <section class="usage-section"><h2>套餐用量</h2><div id="windows"></div></section>
+    <section class="reset-section"><h2>额度重置</h2><p class="muted">每次消耗 1 次重置次数，操作前会请你确认。</p>
       <div class="reset-row"><div><strong>重置用量窗口</strong><p id="window-count" class="muted"></p></div><button data-reset="window">重置窗口</button></div>
       <div class="reset-row"><div><strong>恢复月度额度</strong><p id="monthly-count" class="muted"></p></div><button data-reset="monthly_full">恢复月度额度</button></div>
     </section>

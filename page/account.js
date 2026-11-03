@@ -8,7 +8,8 @@ let applying = false;
 let busy = false;
 let revision = 0;
 const format = (value) => new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(value);
-const date = (value) => new Date(value).toLocaleString("zh-CN");
+const date = (value) => new Date(value).toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+const unit = (value) => ({ units: "点", call: "次", calls: "次" })[value] || value || "";
 
 async function api(path, body = {}) {
   const response = await fetch(new URL(path, location.href), {
@@ -48,10 +49,10 @@ function render() {
     const name = document.createElement("strong");
     name.textContent = ({ Subscription: "月度额度", Credits: "可用额度", Usage: "套餐额度", web_search: "联网搜索" })[window.name] || window.name.replace("h window", " 小时窗口");
     const amount = document.createElement("span");
-    amount.textContent = window.limit !== undefined ? `${format(window.amount)} / ${format(window.limit)} ${window.unit || ""}` : window.display === "Unlimited" ? "不限额度" : window.display;
+    amount.textContent = window.limit !== undefined ? `${format(window.amount)} / ${format(window.limit)} ${unit(window.unit)}` : window.display === "Unlimited" ? "不限额度" : window.amount !== undefined ? `${format(window.amount)} ${unit(window.unit)}` : ({ "No allowance reported": "暂无额度信息", "No subscription allowance reported": "暂无套餐额度信息" })[window.display] || window.display;
     heading.append(name, amount); row.append(heading);
-    if (window.used !== undefined) { const progress = document.createElement("progress"); progress.max = 100; progress.value = Math.min(100, window.used); progress.setAttribute("aria-label", `${name.textContent} 已用 ${format(window.used)}%`); row.append(progress); }
-    if (window.resetsAt) { const reset = document.createElement("p"); reset.className = "muted"; reset.dataset.resetAt = window.resetsAt; row.append(reset); }
+    if (window.used !== undefined) { const progress = document.createElement("progress"); progress.max = 100; progress.value = Math.max(0, Math.min(100, window.used)); progress.setAttribute("aria-label", `${name.textContent} 已用 ${format(window.used)}%`); row.append(progress); }
+    if (window.resetsAt) { const reset = document.createElement("p"); reset.className = "muted"; reset.dataset.resetAt = window.resetsAt; reset.title = `重置时间 ${date(window.resetsAt)}`; row.append(reset); }
     $("windows").append(row);
   }
   for (const [kind, id] of [["window", "window-count"], ["monthly_full", "monthly-count"]]) {
@@ -65,7 +66,7 @@ function countdowns() {
   document.querySelectorAll("[data-reset-at]").forEach((node) => {
     const remaining = Date.parse(node.dataset.resetAt) - Date.now();
     const minutes = Math.max(0, Math.ceil(remaining / 60_000));
-    node.textContent = remaining <= 0 ? `重置时间已到，请刷新用量（${date(node.dataset.resetAt)}）` : `${Math.floor(minutes / 60)} 小时 ${minutes % 60} 分钟后重置 · ${date(node.dataset.resetAt)}`;
+    node.textContent = remaining <= 0 ? `重置时间已到，请刷新用量（${date(node.dataset.resetAt)}）` : `${minutes >= 1440 ? `${Math.floor(minutes / 1440)} 天 ${Math.floor(minutes % 1440 / 60)} 小时` : `${Math.floor(minutes / 60)} 小时 ${minutes % 60} 分钟`}后重置`;
   });
 }
 

@@ -33,8 +33,11 @@ export function models(payload: Record<string, unknown>, issuer: string): Record
       config.supportedEndpointTypes ?? config.supported_endpoint_types
     const candidates = explicit !== undefined ? [text(explicit, "endpoint type")] :
       declared !== undefined ? strings(declared, "endpoint types") : []
-    const kind = candidates.find((candidate) => Object.hasOwn(apis, candidate))
-    // Image-only and unclassified models cannot serve Magpie agent conversations.
+    // Dim's /v1/models follows the OpenAI-compatible catalog contract. An
+    // omitted endpoint is the provider default, not an unavailable model.
+    const kind = explicit === undefined && declared === undefined ? "openai" :
+      candidates.find((candidate) => Object.hasOwn(apis, candidate))
+    // Explicitly unsupported protocols cannot be routed through these adapters.
     if (!kind) continue
     const api = apis[kind]!
     if (Object.hasOwn(out, id)) throw new Error("Invalid Dim model list: duplicate model ID")
@@ -51,8 +54,9 @@ export function models(payload: Record<string, unknown>, issuer: string): Record
     const tier = config.serviceTier ?? raw.serviceTier ?? raw.service_tier ?? extra.serviceTier ?? extra.service_tier
     const tiers = typeof tier === "object" && tier !== null ? record(tier, "service tiers").options : undefined
     const serviceTiers = tiers === undefined ? undefined : strings(tiers, "service tier options").filter((t) => t !== "default")
+    const name = text(config.displayName ?? config.display_name ?? config.name ?? raw.display_name ?? raw.name ?? id, "model name")
     out[id] = {
-      id, providerID: PROVIDER, name: text(config.displayName ?? config.display_name ?? config.name ?? raw.display_name ?? raw.name ?? id, "model name"),
+      id, providerID: PROVIDER, name: raw.zdr === true ? `${name} · ZDR` : name,
       api: { id, url: `${issuer}${api.path}`, npm: api.npm },
       limit: {
         context: number(config.context_window ?? config.contextWindow ?? limit.context ?? 0, "context limit"),
@@ -123,7 +127,7 @@ export function usage(payload: Record<string, unknown>, user: string) {
   }
   if (credits.remaining_units !== undefined && bucket?.unlimited !== true) {
     const remaining = number(credits.remaining_units, "remaining units")
-    windows.push({ name: "Credits", source: "account", display: `${remaining} units remaining`, aside: true })
+    windows.push({ name: "Credits", source: "account", amount: remaining, unit: "units", display: `${remaining} units remaining`, aside: true })
   }
   if (data.feature_meters !== undefined) {
     if (!Array.isArray(data.feature_meters)) throw new Error("Invalid feature meters")

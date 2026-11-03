@@ -88,7 +88,7 @@ export class AccountService {
       return new Response(template.replace("__SESSION__", this.secret), {
         headers: {
           "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer",
-          "Content-Security-Policy": `default-src 'none'; script-src 'self' ${url.origin}; style-src 'self' ${url.origin}; img-src 'self' ${url.origin}; connect-src 'self' ${url.origin}; base-uri 'none'; form-action 'none'; frame-ancestors 'self' http://127.0.0.1:* http://localhost:*`,
+          "Content-Security-Policy": `default-src 'none'; script-src 'self' ${url.origin}; style-src 'self' ${url.origin}; img-src 'self' ${url.origin}; connect-src 'self' ${url.origin}; base-uri 'none'; form-action 'none'; frame-ancestors 'self' wails://localhost http://127.0.0.1:* http://localhost:*`,
         },
       })
     }
