@@ -10,18 +10,18 @@
 
 请使用 Magpie **0.1.2818 或更新版本**。
 
-用 GitHub CLI 把插件下载到本机：
+打开 Magpie 的 **Plugins（插件）** 页面，点击 **Add a plugin（添加插件）**，填入：
 
-```sh
-gh repo clone arcships/magpie-dim-oauth
+```text
+arcships/magpie-dim-oauth
 ```
 
-然后打开 Magpie 的 **Plugins（插件）** 页面，点击 **Add a plugin（添加插件）**，填入刚才下载的 `magpie-dim-oauth` 文件夹的完整路径。
+确认添加后，Magpie 会自动下载并安装插件。
 
-习惯用终端的话，也可以在下载插件的目录里执行：
+习惯用终端的话，也可以直接执行：
 
 ```sh
-magpie plugin add ./magpie-dim-oauth
+magpie plugin add arcships/magpie-dim-oauth
 ```
 
 ## 登录，然后选一个模型
