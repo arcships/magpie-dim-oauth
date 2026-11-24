@@ -3,6 +3,7 @@ import { randomBytes, randomUUID } from "node:crypto"
 import { spawn } from "node:child_process"
 import type { Auth, GetAuth } from "./contracts"
 import { applyReset, fetchAccount, prepareReset, type ResetConfirmation, type ResetKind } from "./account"
+import { AutoReset, AUTO_RESET_INTERVAL } from "./auto-reset"
 import { readAuth } from "./oauth"
 import { record, request, text } from "./http"
 
@@ -19,8 +20,9 @@ export class AccountService {
   private secret = randomBytes(32).toString("base64url")
   private server?: ReturnType<typeof Bun.serve>
   private refreshing?: Promise<void>
+  private autoResetTimer?: ReturnType<typeof setInterval>
 
-  constructor(private gatewayAddress = process.env.MAGPIE_ADDR) {}
+  constructor(private gatewayAddress = process.env.MAGPIE_ADDR, private autoReset = new AutoReset()) {}
 
   private refreshHost() {
     if (this.refreshing) return this.refreshing
@@ -73,10 +75,23 @@ export class AccountService {
       maxRequestBodySize: 16 * 1024,
     })
     this.server.unref()
+    if (this.gatewayAddress) {
+      this.autoResetTimer = setInterval(async () => {
+        try {
+          if (this.autoReset.anyEnabled()) await this.refreshHost()
+        } catch {
+          // The gateway can be starting or stopping. The next tick can try again.
+        }
+      }, AUTO_RESET_INTERVAL)
+      this.autoResetTimer.unref()
+    }
     return this.server
   }
 
-  stop() { return this.server?.stop(true) }
+  stop() {
+    clearInterval(this.autoResetTimer)
+    return this.server?.stop(true)
+  }
 
   private async handle(req: Request): Promise<Response> {
     const url = new URL(req.url)
@@ -118,7 +133,19 @@ export class AccountService {
       const id = text(body.account, "account")
       const account = this.accounts.get(id)
       if (!account) return reply({ error: "Refresh Dim usage in Magpie to load this account" }, 404)
-      if (url.pathname === "/view") return reply(await account.run(fetchAccount))
+      if (url.pathname === "/view") return reply(await account.run(async (auth) => {
+        const view = await fetchAccount(auth)
+        try { return { ...view, autoReset: this.autoReset.status(auth) } }
+        catch { return { ...view, autoReset: null } }
+      }))
+      if (url.pathname === "/auto-reset") {
+        const enabled = body.enabled
+        if (typeof enabled !== "boolean") throw new Error("Invalid automatic reset setting")
+        return reply(await account.run(async (auth) => {
+          try { return this.autoReset.setEnabled(auth, enabled) }
+          catch { throw new Error("无法保存自动重置设置") }
+        }))
+      }
       if (url.pathname === "/open" && (body.page === "subscription" || body.page === "pricing")) {
         const path = body.page
         return reply(await account.run(async (auth) => {

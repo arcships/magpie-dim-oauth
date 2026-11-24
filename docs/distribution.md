@@ -2,12 +2,12 @@
 
 2026-11-03 已将 `arcships/magpie-dim-oauth` 公开，并添加 GitHub Topic `magpie-plugin`。
 已验证匿名读取根目录 package.json，以及 GitHub 按 Magpie Topic 条件搜索命中仓库。
-本仓库只通过 GitHub 分发，不发布 npm。当前版本 `0.1.1`，正式发布使用对应的 `v0.1.1` annotated tag。
+本仓库只通过 GitHub 分发，不发布 npm。当前版本 `0.2.0`，正式发布使用对应的 `v0.2.0` annotated tag。
 社区收录已提交 [PR #669](https://github.com/magpie-community/plugins/pull/669)；审核状态以该 PR 为准。
 
 ## 官方所说的 tag 是什么
 
-让 GitHub 仓库出现在 Magpie 的发现列表，需要的是 GitHub 仓库 **Topic：`magpie-plugin`**，而不是 `v0.1.1` 这样的 Git 版本 tag。
+GitHub 仓库通过 **Topic `magpie-plugin`** 出现在 Magpie 的发现列表中。Git 版本 tag `v<version>` 用于标记发布提交。
 
 Magpie 会搜索带这个 Topic 的仓库，展示在：
 
@@ -44,13 +44,13 @@ magpie plugin add arcships/magpie-dim-oauth
 
 使用仓库内的 [release-plugin 技能](../.agents/skills/release-plugin/SKILL.md)。
 本仓库正式发布必须完成版本号、校验、提交、annotated tag 和推送，不能仅修改 package.json。
-当前 `0.1.1` 的 tag 为 `v0.1.1`。本次只创建 Git tag，不创建 GitHub Release，也不发布 npm。
+`v0.2.0` 新增 DimAgent 按账号启用的 Auto Reset。发布通过 `origin/main` 和 annotated tag `v0.2.0` 分发，并用官方 Magpie 的隔离安装测试验证后台重置流程。
 
 这是本仓库的发布约定，不是 GitHub Topic 发现的前提。Magpie 对 GitHub 分支安装按提交检查更新；
 用户点击 Update 或执行 `magpie plugin update` 获取更新。固定 tag 安装可以使用：
 
 ```sh
-magpie plugin add 'arcships/magpie-dim-oauth#v0.1.1'
+magpie plugin add 'arcships/magpie-dim-oauth#v0.2.0'
 ```
 
 固定 tag 不会随着 main 移动。普通用户仍推荐使用不带 `#ref` 的仓库安装方式。

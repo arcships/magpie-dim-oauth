@@ -6,6 +6,8 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { DimOAuthPlugin } from "../src/index"
 import { AccountService } from "../src/service"
+import { fetchAccount } from "../src/account"
+import { AutoReset, AUTO_RESET_INTERVAL } from "../src/auto-reset"
 import type { Auth, Options } from "../src/contracts"
 
 const stops: (() => unknown)[] = []
@@ -70,7 +72,9 @@ export function fixture() {
       resetsApplied++
       const kind: "window" | "monthly_full" = input.reset_type
       summary[kind].available_count--
-      const value = { bucket: { ...bucket, used_units: 0 }, window_states: bucket.window_states.map((w) => ({ ...w, window_token_used: 0 })), resets: structuredClone(summary), replayed: false, applied_at: new Date().toISOString() }
+      for (const window of bucket.window_states) window.window_token_used = 0
+      if (kind === "monthly_full") bucket.used_units = 0
+      const value = { bucket: structuredClone(bucket), window_states: structuredClone(bucket.window_states), resets: structuredClone(summary), replayed: false, applied_at: new Date().toISOString() }
       applied.set(input.idempotency_key, value)
       if (resetReplyFailure) return new Response("response unavailable after apply", { status: 503 })
       return Response.json({ data: value })
@@ -86,7 +90,10 @@ export function fixture() {
     setTokenFailure: (value?: string) => { tokenFailure = value }, setModelFailure: (value: number) => { modelFailure = value },
     setQuotaFailure: (value: boolean) => { quotaFailure = value }, setDetailsFailure: (value: boolean) => { detailsFailure = value },
     setUnlimited: () => { bucket.unlimited = true; bucket.total_units = 0; bucket.used_units = 0; bucket.remaining_units = 0 },
-    setResetReplyFailure: (value: boolean) => { resetReplyFailure = value }, setZdr: (value: boolean) => { zdr = value }, setRemainingUnits: (value: number) => { remainingUnits = value }, resetsApplied: () => resetsApplied }
+    setResetReplyFailure: (value: boolean) => { resetReplyFailure = value }, setZdr: (value: boolean) => { zdr = value }, setRemainingUnits: (value: number) => { remainingUnits = value }, resetsApplied: () => resetsApplied,
+    setWindowUsage: (used: number, expiry = period) => Object.assign(bucket.window_states[0]!, { window_token_used: used, window_expires_at: expiry }),
+    setMonthlyUsage: (used: number) => { bucket.used_units = used },
+  }
 }
 
 async function plugin(options: Options = {}) { return DimOAuthPlugin({}, { port: 0, ...options }) }
@@ -295,7 +302,7 @@ describe("Magpie provider flows", () => {
   })
 })
 
-test.skipIf(!process.env.MAGPIE_TEST_BINARY)("official Magpie installs the plugin, loads its catalog and rotates saved credentials", async () => {
+test.skipIf(!process.env.MAGPIE_TEST_BINARY)("official Magpie installs, renews the sign-in and automatically resets an exhausted window", async () => {
   const binary = process.env.MAGPIE_TEST_BINARY!
   const f = fixture()
   const sandbox = await mkdtemp(join(tmpdir(), "magpie-dim-test-"))
@@ -350,12 +357,98 @@ test.skipIf(!process.env.MAGPIE_TEST_BINARY)("official Magpie installs the plugi
   expect(accounts.status).toBe(200)
   const accountList = await accounts.json()
   expect(accountList.accounts).toHaveLength(1)
-  const accountPage = await fetch(`http://127.0.0.1:${pagePort}/view`, {
-    method: "POST", headers: { "Content-Type": "application/json", "X-Dim-Session": secret }, body: JSON.stringify({ account: accountList.accounts[0].id }),
+  const accountPost = (path: string, body = {}) => fetch(`http://127.0.0.1:${pagePort}/${path}`, {
+    method: "POST", headers: { "Content-Type": "application/json", "X-Dim-Session": secret }, body: JSON.stringify({ account: accountList.accounts[0].id, ...body }),
   })
+  const accountPage = await accountPost("view")
   expect(accountPage.status).toBe(200)
-  expect((await accountPage.json()).plan.name).toBe("Dim Pro")
-}, 60_000)
+  const before = await accountPage.json()
+  expect(before.plan.name).toBe("Dim Pro")
+  expect(before.autoReset).toEqual({ enabled: false, lastApplied: null })
+  expect(html).toContain("Auto Reset（自动重置）")
+  const enabled = await accountPost("auto-reset", { enabled: true })
+  expect(enabled.status).toBe(200)
+  expect((await enabled.json()).enabled).toBe(true)
+  expect(f.resetsApplied()).toBe(0)
+
+  // Leave the page idle. The plugin's timer must refresh through the real
+  // gateway, which dispatches usage with the isolated Dim account's auth.
+  f.setWindowUsage(100)
+  const deadline = Date.now() + 2 * AUTO_RESET_INTERVAL + 10_000
+  while (f.resetsApplied() === 0 && Date.now() < deadline) await Bun.sleep(250)
+  expect(f.resetsApplied()).toBe(1)
+  let after = await (await accountPost("view")).json()
+  for (let attempt = 0; !after.autoReset.lastApplied && attempt < 20; attempt++) {
+    await Bun.sleep(50)
+    after = await (await accountPost("view")).json()
+  }
+  expect(after.autoReset.lastApplied).toEqual(expect.any(String))
+  expect(after.resets.window.available).toBe(2)
+  expect(after.resets.monthly_full.available).toBe(2)
+  expect(after.windows.find((window: { span?: number }) => window.span)?.used).toBe(0)
+  const disabled = await accountPost("auto-reset", { enabled: false })
+  expect((await disabled.json()).enabled).toBe(false)
+}, 180_000)
+
+describe("Automatic window resets", () => {
+  test("requires account opt-in, a live exhausted window and usable reset credits", async () => {
+    const f = fixture()
+    const autoReset = new AutoReset()
+    stops.unshift(() => autoReset.close())
+    const check = async (auth = f.auth) => autoReset.check(auth, await fetchAccount(auth), async () => auth)
+    f.setWindowUsage(100)
+    await check()
+    autoReset.setEnabled(f.auth, true)
+    await check({ ...f.auth, uid: "separate-account" })
+    f.setWindowUsage(99)
+    await check()
+    f.setWindowUsage(100, new Date(Date.now() - 1000).toISOString())
+    await check()
+    f.setWindowUsage(100)
+    f.setMonthlyUsage(1000)
+    await check()
+    f.setMonthlyUsage(370)
+    f.summary.window.available_count = 0
+    await check()
+    expect(f.calls.some((call) => call.path.startsWith("/api/me/usage-resets"))).toBe(false)
+  })
+
+  test("shares an intent across hosts and reuses its key after an uncertain response and restart", async () => {
+    const f = fixture()
+    const dir = await mkdtemp(join(tmpdir(), "dim-auto-reset-test-"))
+    const file = join(dir, "dim-auto-reset.sqlite")
+    let now = Date.now()
+    const first = new AutoReset(file, () => now)
+    const second = new AutoReset(file, () => now)
+    stops.unshift(async () => { first.close(); second.close(); await rm(dir, { recursive: true, force: true }) })
+    first.setEnabled(f.auth, true)
+    expect(second.status(f.auth).enabled).toBe(true)
+
+    f.setWindowUsage(100)
+    f.setResetReplyFailure(true)
+    const view = await fetchAccount(f.auth)
+    const getAuth = async () => f.auth
+    const results = await Promise.allSettled([first.check(f.auth, view, getAuth), second.check(f.auth, view, getAuth)])
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1)
+    expect(f.resetsApplied()).toBe(1)
+    first.close()
+
+    // A stale vendor reading can still report the window as exhausted after the
+    // first application. The persisted key makes the retry a replay.
+    f.setWindowUsage(100)
+    now += AUTO_RESET_INTERVAL
+    await second.check(f.auth, await fetchAccount(f.auth), getAuth)
+    expect(first.status(f.auth).lastApplied).toEqual(expect.any(String))
+    now += AUTO_RESET_INTERVAL
+    await first.check(f.auth, await fetchAccount(f.auth), getAuth)
+    const applied = f.calls.filter((call) => call.path.endsWith("/apply")).map((call) => JSON.parse(call.body))
+    expect(applied).toHaveLength(2)
+    expect(applied[0]).toEqual(applied[1])
+    expect(applied[0].reset_type).toBe("window")
+    expect(f.resetsApplied()).toBe(1)
+    expect(f.summary.monthly_full.available_count).toBe(2)
+  })
+})
 
 describe("Account page user flows", () => {
   async function page(f = fixture(), gateway?: string) {
@@ -405,7 +498,9 @@ describe("Account page user flows", () => {
     expect(duplicate.response.status).toBe(200)
     expect(p.f.resetsApplied()).toBe(1)
     expect(first.data.view.resets[kind].available).toBe(p.f.summary[kind].available_count)
-    expect(first.data.view.windows[0].used).toBe(0)
+    expect(first.data.view.windows.find((window: { span?: number }) => window.span)?.used).toBe(0)
+    expect(first.data.view.windows.find((window: { name: string }) => window.name === "Subscription")?.used)
+      .toBe(kind === "window" ? 37 : 0)
     expect(first.data.view.windows.find((window: { name: string }) => window.name === "web_search")).toBeDefined()
     expect(p.f.calls.filter((call) => call.path === "/api/me/usage")).toHaveLength(before)
     expect(JSON.parse(p.f.calls.find((call) => call.path.endsWith("/apply"))!.body)).toMatchObject({ subscription_id: 88, reset_type: kind, idempotency_key: expect.any(String) })

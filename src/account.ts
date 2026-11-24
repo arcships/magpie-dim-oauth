@@ -61,16 +61,16 @@ export function accountView(payload: Record<string, unknown>, auth: Auth): Accou
   }
 }
 
-export async function fetchAccount(auth: Auth): Promise<AccountView> {
+export async function fetchAccount(auth: Auth, signal?: AbortSignal): Promise<AccountView> {
   return accountView(await json(await request(`${auth.issuer}/api/me/usage`, {
-    headers: identityHeaders(auth.access),
+    headers: identityHeaders(auth.access), signal,
   }), "Dim usage"), auth)
 }
 
 export interface ResetBatch { count: number; expiresAt: string; source: string }
-export async function resetBatches(auth: Auth, subscriptionId: number, kind: ResetKind): Promise<ResetBatch[]> {
+export async function resetBatches(auth: Auth, subscriptionId: number, kind: ResetKind, signal?: AbortSignal): Promise<ResetBatch[]> {
   const envelope = await json(await request(`${auth.issuer}/api/me/usage-resets`, {
-    headers: identityHeaders(auth.access),
+    headers: identityHeaders(auth.access), signal,
   }), "Dim reset details")
   const raw = record(record(envelope.data, "reset batches")[kind], "reset kind batches")
   if (!Array.isArray(raw.batches)) throw new Error("Invalid Dim reset batches")
@@ -115,19 +115,22 @@ export async function prepareReset(auth: Auth, kind: ResetKind): Promise<ResetCo
   }
 }
 
-export async function applyReset(auth: Auth, confirmation: ResetConfirmation) {
+type ResetRequest = Pick<ResetConfirmation, "kind" | "account" | "subscriptionId" | "view" | "idempotencyKey">
+
+export async function applyReset(auth: Auth, confirmation: ResetRequest, signal?: AbortSignal) {
   if (auth.uid !== confirmation.account || auth.issuer !== confirmation.view.issuer) throw new Error("Dim account changed; confirm again")
   const headers = identityHeaders(auth.access)
   headers.set("Content-Type", "application/json")
   const envelope = await json(await request(`${auth.issuer}/api/me/usage-resets/apply`, {
-    method: "POST", headers,
+    method: "POST", headers, signal,
     body: JSON.stringify({ subscription_id: confirmation.subscriptionId, reset_type: confirmation.kind, idempotency_key: confirmation.idempotencyKey }),
   }), "Dim quota reset")
   const raw = record(envelope.data, "reset result")
-  if (typeof raw.replayed !== "boolean" || !date(raw.applied_at)) throw new Error("Invalid Dim reset result")
+  const appliedAt = date(raw.applied_at)
+  if (typeof raw.replayed !== "boolean" || !appliedAt) throw new Error("Invalid Dim reset result")
   const updated = usage({ data: { credits: { subscription_bucket: { ...record(raw.bucket, "reset bucket"), window_states: raw.window_states } } } }, auth.accountId)
   // Apply returns a fresh subscription, not an account-wide credit aggregate.
   // Preserve independent feature allowances; do not invent an updated aggregate.
   const windows = [...updated.windows, ...confirmation.view.windows.filter((window) => window.source === "feature")]
-  return { replayed: raw.replayed, view: { ...confirmation.view, windows, resets: resets(raw.resets) } }
+  return { replayed: raw.replayed, appliedAt, view: { ...confirmation.view, windows, resets: resets(raw.resets) } }
 }

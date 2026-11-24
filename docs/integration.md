@@ -24,7 +24,7 @@ Magpie 是 Go 编写的本地模型网关，外部服务商插件运行在 Bun �
 | `auth.loader` | 提供请求地址和鉴权 fetch，透传取消信号、响应状态与流 |
 | `provider.models` | 按当前账号获取模型和能力，映射为 Magpie 模型结构 |
 | `auth.usage` | 将真实套餐额度映射为 Magpie 用量窗口，并登记宿主账号的读取能力 |
-| 本地账户页服务 | 在账号作用域内查询套餐与重置次数、执行经确认的重置、打开官方购买/续期页面 |
+| 本地账户页服务 | 在账号作用域内查询套餐与重置次数、执行经确认的重置、管理 Auto Reset、打开官方购买/续期页面 |
 
 Magpie 负责网关协议转换、路由、多账号调度和失败转移。
 令牌使用 Magpie 的账号存储；不读取已有 DimCode 登录文件，不建立第二套凭据仓库。
@@ -90,6 +90,7 @@ Plugin callback <--- loopback callback-+
 Magpie 的 `auth.refresh` 从 0.1.684 起支持宿主串行续期，当前版本同时具有跨进程锁。
 账户页通过宿主环境中的 `MAGPIE_ADDR` 请求 `POST /v1/magpie/quotas/refresh?provider=dim-oauth`，
 由宿主在原生账号作用域下续期并调用 `auth.usage`，不在页面服务中交换或保存 refresh token。
+有账号开启 Auto Reset 时，页面服务每分钟通过同一入口刷新 DimAgent 用量。`auth.usage` 核对活动套餐、已用尽的有效窗口和适用的重置批次，然后调用 `window` 重置。配置和待重试操作保存在 Magpie 配置目录中的 `dim-auto-reset.sqlite`，按账号区分。数据库事务协调本地多个 Magpie 进程，同一个窗口的重试复用同一幂等键。数据库只保存设置和重置记录，无需存放授权令牌。
 实现以本地验证版本 0.1.2818 为最低声明版本；OpenCode 的基础插件格式兼容不等于完整续期流程兼容，
 首版不承诺未经验证的 OpenCode 支持。
 

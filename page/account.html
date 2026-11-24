@@ -23,9 +23,10 @@
       <label class="link-label" for="pricing-url">价格链接</label><input id="pricing-url" readonly aria-label="价格页面链接"></details>
     </section>
     <section class="usage-section"><h2>套餐用量</h2><div id="windows"></div></section>
-    <section class="reset-section"><h2>额度重置</h2><p class="muted">每次消耗 1 次重置次数，操作前会请你确认。</p>
+    <section class="reset-section"><h2>额度重置</h2><p class="muted">手动重置消耗 1 次重置次数，操作前会请你确认。</p>
       <div class="reset-row"><div><strong>重置用量窗口</strong><p id="window-count" class="muted"></p></div><button data-reset="window">重置窗口</button></div>
       <div class="reset-row"><div><strong>恢复月度额度</strong><p id="monthly-count" class="muted"></p></div><button data-reset="monthly_full">恢复月度额度</button></div>
+      <div class="reset-row"><div><strong>Auto Reset（自动重置）</strong><p id="auto-reset-description" class="muted">开启后，Magpie 运行时会在当前账号的套餐用量窗口用满后自动消耗 1 次窗口重置次数。</p><p id="auto-reset-status" class="muted" aria-live="polite"></p></div><button id="auto-reset" aria-label="自动重置用量窗口" aria-describedby="auto-reset-description" aria-pressed="false">已关闭</button></div>
     </section>
   </div>
   <dialog id="confirmation" aria-labelledby="confirm-title">

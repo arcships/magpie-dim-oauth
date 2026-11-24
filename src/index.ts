@@ -1,16 +1,20 @@
 import type { GetAuth, OAuthOptions, Options, ProviderConfig } from "./contracts"
+import { isAbsolute, join } from "node:path"
 import { PROVIDER } from "./contracts"
 import { models } from "./catalog"
 import { fetchAccount } from "./account"
 import { AccountService } from "./service"
+import { AutoReset } from "./auto-reset"
 import { identityHeaders, json, request } from "./http"
 import { authorize, readAuth, refresh } from "./oauth"
 
 // Entry modules must not export helper functions: Magpie invokes every function.
 let accountService: AccountService | undefined
-export const DimOAuthPlugin = async (_input: unknown, options: Options = {}) => {
+export const DimOAuthPlugin = async (input: { directory?: string }, options: Options = {}) => {
+  const stateFile = input?.directory && isAbsolute(input.directory) ? join(input.directory, "dim-auto-reset.sqlite") : undefined
+  const autoReset = new AutoReset(stateFile)
   if (!accountService) {
-    const service = new AccountService()
+    const service = new AccountService(undefined, autoReset)
     try {
       service.start(options.port ?? 3488)
       accountService = service
@@ -75,10 +79,15 @@ export const DimOAuthPlugin = async (_input: unknown, options: Options = {}) => 
           },
         }
       },
-      async usage(getAuth: GetAuth) {
+      async usage(getAuth: GetAuth, _provider?: unknown, context?: { signal?: AbortSignal }) {
         await register(getAuth)
         const auth = readAuth(await getAuth())
-        const view = await fetchAccount(auth)
+        let view = await fetchAccount(auth, context?.signal)
+        try {
+          view = await autoReset.check(auth, view, getAuth, context?.signal)
+        } catch {
+          if (!context?.signal?.aborted) console.warn("DimAgent automatic window reset check failed")
+        }
         return {
           user: view.user, plan: view.plan?.name, until: view.plan?.end,
           // The account total overlaps the plan allowance; it is not a usage window.

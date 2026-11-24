@@ -25,6 +25,7 @@ function buttons() {
   document.querySelectorAll("[data-reset]").forEach((button) => {
     button.disabled = busy || !view?.subscriptionId || !view.resets[button.dataset.reset].available;
   });
+  $("auto-reset").disabled = busy || !view?.autoReset;
   $("refresh").disabled = busy;
   $("account").disabled = busy;
 }
@@ -63,6 +64,11 @@ function render() {
     const reset = view.resets[kind];
     $(id).textContent = `剩余 ${reset.available} 次${reset.expiresAt ? `，最近到期 ${date(reset.expiresAt)}` : ""}`;
   }
+  const { autoReset } = view;
+  $("auto-reset").setAttribute("aria-pressed", String(autoReset?.enabled ?? false));
+  $("auto-reset").textContent = autoReset?.enabled ? "已开启" : "已关闭";
+  $("auto-reset-status").textContent = !autoReset ? "暂时无法读取设置" :
+    autoReset.lastApplied ? `上次自动重置 ${date(autoReset.lastApplied)}` : "";
   countdowns(); buttons();
 }
 
@@ -93,6 +99,17 @@ async function load() {
 
 $("refresh").onclick = load;
 $("account").onchange = () => { account = $("account").value; view = undefined; $("content").hidden = true; load(); };
+$("auto-reset").onclick = async () => {
+  if (busy || !view?.autoReset) return;
+  busy = true; buttons(); $("message").textContent = "";
+  try {
+    view.autoReset = await api("auto-reset", { enabled: !view.autoReset.enabled });
+    render();
+  } catch (error) {
+    $("message").dataset.kind = "error";
+    $("message").textContent = error.message;
+  } finally { busy = false; buttons(); }
+};
 for (const id of ["purchase", "renew", "pricing"]) $(id).onclick = async () => {
   try { await api("open", { page: id === "pricing" ? "pricing" : "subscription" }); }
   catch (error) { $("message").textContent = error.message; }
@@ -117,7 +134,7 @@ $("apply").onclick = async () => {
   applying = true; $("apply").disabled = true; $("cancel").disabled = true; $("confirm-error").textContent = "";
   try {
     const result = await api("reset/apply", { confirmation: confirmation.confirmation });
-    view = result.view; render(); $("confirmation").close();
+    view = { ...result.view, autoReset: view.autoReset }; render(); $("confirmation").close();
     $("message").dataset.kind = "success";
     $("message").textContent = result.replayed ? "这次重置已处理，未重复消耗次数。" : "重置成功，用量已更新。";
   } catch (error) { $("confirm-error").textContent = `${error.message}。如需重试，请继续使用此确认窗口，避免重复操作。`; }
